@@ -62,6 +62,7 @@ ParserReturn {
                             },
                         },
                     },
+                    operator: Assign,
                     right: NumericLiteral(
                         NumericLiteral {
                             span: Span {
@@ -126,6 +127,7 @@ ParserReturn {
                             },
                         },
                     },
+                    operator: Assign,
                     right: NumericLiteral(
                         NumericLiteral {
                             span: Span {
@@ -190,6 +192,7 @@ ParserReturn {
                             },
                         },
                     },
+                    operator: Assign,
                     right: NumericLiteral(
                         NumericLiteral {
                             span: Span {

@@ -59,6 +59,7 @@ ParserReturn {
                                                 },
                                             },
                                         },
+                                        operator: Assign,
                                         right: Binary(
                                             BinaryExpression {
                                                 span: Span {

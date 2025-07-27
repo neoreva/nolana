@@ -2,6 +2,8 @@ use std::ops::{Index, IndexMut};
 
 use miette::{LabeledSpan, SourceOffset, SourceSpan};
 
+pub const SPAN: Span = Span::new(0, 0);
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
     pub start: u32,

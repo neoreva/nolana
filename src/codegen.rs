@@ -152,16 +152,6 @@ impl Gen for Statement<'_> {
     }
 }
 
-impl Gen for AssignmentStatement<'_> {
-    fn gen(&self, c: &mut Codegen) {
-        self.left.gen(c);
-        c.print_space();
-        c.print_char('=');
-        c.print_space();
-        self.right.gen(c);
-    }
-}
-
 impl Gen for ReturnStatement<'_> {
     fn gen(&self, c: &mut Codegen) {
         c.print_str("return ");
@@ -335,6 +325,16 @@ impl Gen for ConditionalExpression<'_> {
         c.print_char('?');
         c.print_space();
         self.consequent.gen(c);
+    }
+}
+
+impl Gen for AssignmentStatement<'_> {
+    fn gen(&self, c: &mut Codegen) {
+        self.left.gen(c);
+        c.print_space();
+        c.print_str(self.operator.as_str());
+        c.print_space();
+        self.right.gen(c);
     }
 }
 

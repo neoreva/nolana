@@ -106,14 +106,38 @@ pub enum Kind {
     #[token("-")]
     Minus,
 
+    #[token("-=")]
+    MinusEq,
+
     #[token("+")]
     Plus,
+
+    #[token("+=")]
+    PlugEq,
 
     #[token("*")]
     Star,
 
+    #[token("*=")]
+    StarEq,
+
+    #[token("**")]
+    Star2,
+
+    #[token("**=")]
+    Star2Eq,
+
     #[token("/")]
     Slash,
+
+    #[token("/=")]
+    SlashEq,
+
+    #[token("%")]
+    Percent,
+
+    #[token("%=")]
+    PercentEq,
 
     #[token("temp")]
     #[token("t", priority = 3)]
@@ -188,6 +212,8 @@ impl Kind {
                 | Kind::Plus
                 | Kind::Star
                 | Kind::Slash
+                | Kind::Percent
+                | Kind::Star2
         )
     }
 
@@ -210,15 +236,17 @@ impl Kind {
     /// <https://bedrock.dev/docs/stable/Molang#Operator%20Precedence>
     pub fn binding_power(self) -> Option<(u8, u8)> {
         Some(match self {
-            Self::Bang => (16, 17),
-            Self::Star | Self::Slash => (14, 15),
-            Self::Plus | Self::Minus => (12, 13),
-            Self::Lt | Self::Gt | Self::LtEq | Self::GtEq => (10, 11),
-            Self::Eq2 | Self::Neq => (8, 9),
-            Self::Amp2 => (6, 7),
-            Self::Pipe2 => (4, 5),
-            Self::Question => (3, 4),
-            Self::Question2 => (1, 2),
+            Self::Bang => (18, 19),
+            Self::Star | Self::Slash => (16, 17),
+            Self::Plus | Self::Minus => (14, 15),
+            Self::Lt | Self::Gt | Self::LtEq | Self::GtEq => (12, 13),
+            Self::Eq2 | Self::Neq => (10, 11),
+            Self::Amp2 => (8, 9),
+            Self::Pipe2 => (6, 7),
+            Self::Question => (5, 6),
+            Self::Question2 => (3, 4),
+            Self::Percent => (2, 3),
+            Self::Star2 => (1, 2),
             _ => return None,
         })
     }
@@ -257,6 +285,14 @@ impl Kind {
             Kind::Plus => "+",
             Kind::Star => "*",
             Kind::Slash => "/",
+            Kind::Percent => "%",
+            Kind::Star2 => "**",
+            Kind::MinusEq => "-=",
+            Kind::PlugEq => "+=",
+            Kind::StarEq => "*=",
+            Kind::SlashEq => "/=",
+            Kind::Star2Eq => "**=",
+            Kind::PercentEq => "%=",
             Kind::Temporary => "temp",
             Kind::Variable => "variable",
             Kind::Context => "context",

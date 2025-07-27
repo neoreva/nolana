@@ -121,21 +121,28 @@ impl<'a> Parser<'a> {
     fn parse_assignment_statement_or_expression(&mut self) -> Result<Statement<'a>> {
         let span = self.start_span();
         let left = self.parse_variable_expression()?;
-        Ok(match self.current_kind() {
-            Kind::Eq => {
-                self.bump();
-                if !self.is_complex {
-                    self.is_complex = true;
-                }
-                let right = self.parse_expression(0)?;
-                Statement::Assignment(
-                    AssignmentStatement { span: self.end_span(span), left, right }.into(),
-                )
+        let operator = match self.current_kind() {
+            Kind::Eq => AssignmentOperator::Assign,
+            Kind::PlugEq => AssignmentOperator::Addition,
+            Kind::MinusEq => AssignmentOperator::Subtraction,
+            Kind::StarEq => AssignmentOperator::Multiplication,
+            Kind::SlashEq => AssignmentOperator::Division,
+            Kind::Star2Eq => AssignmentOperator::Exponential,
+            Kind::PercentEq => AssignmentOperator::Remainder,
+            _ => {
+                return Ok(Statement::Expression(
+                    self.parse_expression_rest(0, Expression::Variable(left.into()), span)?.into(),
+                ))
             }
-            _ => Statement::Expression(
-                self.parse_expression_rest(0, Expression::Variable(left.into()), span)?.into(),
-            ),
-        })
+        };
+        self.bump();
+        if !self.is_complex {
+            self.is_complex = true;
+        }
+        let right = self.parse_expression(0)?;
+        Ok(Statement::Assignment(
+            AssignmentStatement { span: self.end_span(span), left, operator, right }.into(),
+        ))
     }
 
     fn parse_return_statement(&mut self) -> Result<ReturnStatement<'a>> {
