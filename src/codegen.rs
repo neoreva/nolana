@@ -332,9 +332,15 @@ impl Gen for AssignmentStatement<'_> {
     fn gen(&self, c: &mut Codegen) {
         self.left.gen(c);
         c.print_space();
-        c.print_str(self.operator.as_str());
+        self.operator.gen(c);
         c.print_space();
         self.right.gen(c);
+    }
+}
+
+impl Gen for AssignmentOperator {
+    fn gen(&self, c: &mut Codegen) {
+        c.print_str(self.as_str());
     }
 }
 
