@@ -9,7 +9,7 @@ use crate::{
 #[derive(Default)]
 pub struct Compiler {
     binary_operators: BinaryOperators,
-    assignments_operators: AssignmentOperators,
+    assignment_operators: AssignmentOperators,
 }
 
 impl Compiler {
@@ -24,7 +24,7 @@ impl<'a> Traverse<'a> for Compiler {
     }
 
     fn enter_statement(&mut self, it: &mut Statement<'a>) {
-        self.assignments_operators.enter_statement(it);
+        self.assignment_operators.enter_statement(it);
     }
 }
 
