@@ -90,7 +90,6 @@ impl AssignmentOperators {
         }
 
         let Statement::Assignment(assign_stmt) = stmt else { unreachable!() };
-        dbg!(assign_stmt.operator);
         let math_or_op = match assign_stmt.operator {
             AssignmentOperator::Remainder => MathOrOp::Math("mod"),
             AssignmentOperator::Exponential => MathOrOp::Math("pow"),
@@ -103,11 +102,10 @@ impl AssignmentOperators {
         assign_stmt.operator = AssignmentOperator::Assign;
         match math_or_op {
             MathOrOp::Math(math_fn_name) => {
-                let assign_expr = mem::take(assign_stmt);
                 assign_stmt.right = math_call(
                     math_fn_name,
-                    Expression::Variable(assign_expr.left.into()),
-                    assign_expr.right,
+                    Expression::Variable(mem::take(&mut assign_stmt.left).into()),
+                    mem::take(&mut assign_stmt.right),
                 );
             }
             MathOrOp::Op(bin_op) => {
