@@ -1,0 +1,144 @@
+---
+source: tests/parser.rs
+---
+ParserReturn {
+    program: Program {
+        span: Span {
+            start: 0,
+            end: 31,
+        },
+        source: "v.foo++ - 1; (v.bar-- / 2) * 2;",
+        is_complex: true,
+        body: [
+            Expression(
+                Binary(
+                    BinaryExpression {
+                        span: Span {
+                            start: 0,
+                            end: 11,
+                        },
+                        left: Update(
+                            UpdateExpression {
+                                span: Span {
+                                    start: 0,
+                                    end: 7,
+                                },
+                                variable: VariableExpression {
+                                    span: Span {
+                                        start: 0,
+                                        end: 5,
+                                    },
+                                    lifetime: Variable,
+                                    member: Property {
+                                        span: Span {
+                                            start: 0,
+                                            end: 5,
+                                        },
+                                        property: IdentifierReference {
+                                            span: Span {
+                                                start: 2,
+                                                end: 5,
+                                            },
+                                            name: "foo",
+                                        },
+                                    },
+                                },
+                                operator: Increment,
+                            },
+                        ),
+                        operator: Subtraction,
+                        right: NumericLiteral(
+                            NumericLiteral {
+                                span: Span {
+                                    start: 10,
+                                    end: 11,
+                                },
+                                value: 1.0,
+                                raw: "1",
+                            },
+                        ),
+                    },
+                ),
+            ),
+            Expression(
+                Binary(
+                    BinaryExpression {
+                        span: Span {
+                            start: 13,
+                            end: 30,
+                        },
+                        left: Parenthesized(
+                            Single {
+                                span: Span {
+                                    start: 13,
+                                    end: 26,
+                                },
+                                expression: Binary(
+                                    BinaryExpression {
+                                        span: Span {
+                                            start: 14,
+                                            end: 25,
+                                        },
+                                        left: Update(
+                                            UpdateExpression {
+                                                span: Span {
+                                                    start: 14,
+                                                    end: 21,
+                                                },
+                                                variable: VariableExpression {
+                                                    span: Span {
+                                                        start: 14,
+                                                        end: 19,
+                                                    },
+                                                    lifetime: Variable,
+                                                    member: Property {
+                                                        span: Span {
+                                                            start: 14,
+                                                            end: 19,
+                                                        },
+                                                        property: IdentifierReference {
+                                                            span: Span {
+                                                                start: 16,
+                                                                end: 19,
+                                                            },
+                                                            name: "bar",
+                                                        },
+                                                    },
+                                                },
+                                                operator: Decrement,
+                                            },
+                                        ),
+                                        operator: Division,
+                                        right: NumericLiteral(
+                                            NumericLiteral {
+                                                span: Span {
+                                                    start: 24,
+                                                    end: 25,
+                                                },
+                                                value: 2.0,
+                                                raw: "2",
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ),
+                        operator: Multiplication,
+                        right: NumericLiteral(
+                            NumericLiteral {
+                                span: Span {
+                                    start: 29,
+                                    end: 30,
+                                },
+                                value: 2.0,
+                                raw: "2",
+                            },
+                        ),
+                    },
+                ),
+            ),
+        ],
+    },
+    errors: [],
+    panicked: false,
+}
