@@ -116,6 +116,12 @@ pub trait Traverse<'a>: Sized {
     fn exit_unary_expression(&mut self, it: &mut UnaryExpression<'a>) {}
 
     #[inline]
+    fn enter_update_expression(&mut self, it: &mut UpdateExpression<'a>) {}
+
+    #[inline]
+    fn exit_update_expression(&mut self, it: &mut UpdateExpression<'a>) {}
+
+    #[inline]
     fn enter_ternary_expression(&mut self, it: &mut TernaryExpression<'a>) {}
 
     #[inline]
@@ -233,6 +239,7 @@ fn walk_expression<'a>(traverser: &mut impl Traverse<'a>, it: &mut Expression<'a
         Expression::Block(it) => walk_block_expression(traverser, it),
         Expression::Binary(it) => walk_binary_expression(traverser, it),
         Expression::Unary(it) => walk_unary_expression(traverser, it),
+        Expression::Update(it) => walk_update_expression(traverser, it),
         Expression::Ternary(it) => walk_ternary_expression(traverser, it),
         Expression::Conditional(it) => walk_conditional_expression(traverser, it),
         Expression::Resource(it) => walk_resource_expression(traverser, it),
@@ -325,6 +332,12 @@ fn walk_unary_expression<'a>(traverser: &mut impl Traverse<'a>, it: &mut UnaryEx
     traverser.enter_unary_expression(it);
     walk_expression(traverser, &mut it.argument);
     traverser.exit_unary_expression(it);
+}
+
+fn walk_update_expression<'a>(visitor: &mut impl Traverse<'a>, it: &mut UpdateExpression<'a>) {
+    visitor.enter_update_expression(it);
+    walk_variable_expression(visitor, &mut it.variable);
+    visitor.exit_update_expression(it);
 }
 
 fn walk_ternary_expression<'a>(traverser: &mut impl Traverse<'a>, it: &mut TernaryExpression<'a>) {

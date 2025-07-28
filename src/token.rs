@@ -106,11 +106,17 @@ pub enum Kind {
     #[token("-")]
     Minus,
 
+    #[token("--")]
+    Minus2,
+
     #[token("-=")]
     MinusEq,
 
     #[token("+")]
     Plus,
+
+    #[token("++")]
+    Plus2,
 
     #[token("+=")]
     PlugEq,
@@ -221,6 +227,10 @@ impl Kind {
         matches!(self, Kind::Minus | Kind::Bang)
     }
 
+    pub fn is_update_operator(self) -> bool {
+        matches!(self, Kind::Plus2 | Kind::Minus2)
+    }
+
     pub fn is_variable(self) -> bool {
         matches!(self, Kind::Variable | Kind::Temporary | Kind::Context)
     }
@@ -236,6 +246,7 @@ impl Kind {
     /// <https://bedrock.dev/docs/stable/Molang#Operator%20Precedence>
     pub fn binding_power(self) -> Option<(u8, u8)> {
         Some(match self {
+            Self::Plus2 | Self::Minus2 => (99, 0),
             Self::Bang => (18, 19),
             Self::Star | Self::Slash => (16, 17),
             Self::Plus | Self::Minus => (14, 15),
@@ -282,7 +293,9 @@ impl Kind {
             Kind::Semi => ";",
             Kind::Comma => ",",
             Kind::Minus => "-",
+            Kind::Minus2 => "--",
             Kind::Plus => "+",
+            Kind::Plus2 => "++",
             Kind::Star => "*",
             Kind::Slash => "/",
             Kind::Percent => "%",

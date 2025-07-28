@@ -122,6 +122,7 @@ pub enum Expression<'a> {
     Block(Box<BlockExpression<'a>>),
     Binary(Box<BinaryExpression<'a>>),
     Unary(Box<UnaryExpression<'a>>),
+    Update(Box<UpdateExpression<'a>>),
     Ternary(Box<TernaryExpression<'a>>),
     Conditional(Box<ConditionalExpression<'a>>),
     Resource(Box<ResourceExpression<'a>>),
@@ -456,6 +457,42 @@ impl From<Kind> for UnaryOperator {
             Kind::Minus => Self::Negate,
             Kind::Bang => Self::Not,
             _ => unreachable!("Unary Operator: {kind:?}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct UpdateExpression<'a> {
+    pub span: Span,
+    pub variable: VariableExpression<'a>,
+    pub operator: UpdateOperator,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum UpdateOperator {
+    /// `++`
+    #[default]
+    Increment,
+    /// `--`
+    Decrement,
+}
+
+impl UpdateOperator {
+    /// The string representation of this operator as it appears in source code.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Increment => "++",
+            Self::Decrement => "--",
+        }
+    }
+}
+
+impl From<Kind> for UpdateOperator {
+    fn from(token: Kind) -> Self {
+        match token {
+            Kind::Plus2 => Self::Increment,
+            Kind::Minus2 => Self::Decrement,
+            _ => unreachable!("Unary Operator: {token:?}"),
         }
     }
 }

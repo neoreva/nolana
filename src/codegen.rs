@@ -152,6 +152,22 @@ impl Gen for Statement<'_> {
     }
 }
 
+impl Gen for AssignmentStatement<'_> {
+    fn gen(&self, c: &mut Codegen) {
+        self.left.gen(c);
+        c.print_space();
+        self.operator.gen(c);
+        c.print_space();
+        self.right.gen(c);
+    }
+}
+
+impl Gen for AssignmentOperator {
+    fn gen(&self, c: &mut Codegen) {
+        c.print_str(self.as_str());
+    }
+}
+
 impl Gen for ReturnStatement<'_> {
     fn gen(&self, c: &mut Codegen) {
         c.print_str("return ");
@@ -183,6 +199,7 @@ impl Gen for Expression<'_> {
             Self::Binary(expr) => expr.gen(c),
             Self::Unary(expr) => expr.gen(c),
             Self::Ternary(expr) => expr.gen(c),
+            Self::Update(expr) => expr.gen(c),
             Self::Conditional(expr) => expr.gen(c),
             Self::Resource(expr) => expr.gen(c),
             Self::ArrayAccess(expr) => expr.gen(c),
@@ -304,6 +321,19 @@ impl Gen for UnaryOperator {
     }
 }
 
+impl Gen for UpdateExpression<'_> {
+    fn gen(&self, c: &mut Codegen) {
+        self.variable.gen(c);
+        self.operator.gen(c);
+    }
+}
+
+impl Gen for UpdateOperator {
+    fn gen(&self, c: &mut Codegen) {
+        c.print_str(self.as_str());
+    }
+}
+
 impl Gen for TernaryExpression<'_> {
     fn gen(&self, c: &mut Codegen) {
         self.test.gen(c);
@@ -325,22 +355,6 @@ impl Gen for ConditionalExpression<'_> {
         c.print_char('?');
         c.print_space();
         self.consequent.gen(c);
-    }
-}
-
-impl Gen for AssignmentStatement<'_> {
-    fn gen(&self, c: &mut Codegen) {
-        self.left.gen(c);
-        c.print_space();
-        self.operator.gen(c);
-        c.print_space();
-        self.right.gen(c);
-    }
-}
-
-impl Gen for AssignmentOperator {
-    fn gen(&self, c: &mut Codegen) {
-        c.print_str(self.as_str());
     }
 }
 
