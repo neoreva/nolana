@@ -12,8 +12,6 @@ pub struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    const SCOPE_ERR: &'static str = "at least one scope will always exist";
-
     pub fn compile(&mut self, program: &mut Program<'a>) {
         traverse(self, program);
     }
@@ -23,96 +21,72 @@ impl<'a> Compiler<'a> {
     }
 
     fn exit_scope(&mut self) -> Scope<'a> {
-        self.scopes.pop().expect(Self::SCOPE_ERR)
+        self.scopes.pop().unwrap()
     }
 
     fn scope(&mut self) -> &mut Scope<'a> {
-        self.scopes.last_mut().expect(Self::SCOPE_ERR)
+        self.scopes.last_mut().unwrap()
     }
 
-    /// `v.left ** v.right;` -> `math.pow(v.left, v.right);`
-    /// `v.left % v.right;` -> `math.mod(v.left, v.right);`
-    #[inline]
     fn compile_binary_expression(&self, expr: &mut Expression<'a>) {
         let Expression::Binary(bin_expr) = expr else { return };
-        let name = match bin_expr.operator {
-            BinaryOperator::Remainder => "mod",
-            BinaryOperator::Exponential => "pow",
-            _ => return,
-        };
+        if !matches!(
+            bin_expr.operator,
+            BinaryOperator::Remainder
+                | BinaryOperator::Exponential
+                | BinaryOperator::ShiftLeft
+                | BinaryOperator::ShiftRight
+        ) {
+            return;
+        }
+
+        let operator = bin_expr.operator;
         let bin_expr = mem::take(bin_expr);
-        let left = bin_expr.left;
-        let right = bin_expr.right;
-        *expr = Expression::Call(
-            CallExpression {
-                span: SPAN,
-                kind: CallKind::Math,
-                callee: IdentifierReference { span: SPAN, name },
-                arguments: Some(vec![left, right]),
-            }
-            .into(),
-        )
-    }
-
-    /// `v.left += v.right;` -> `v.left = v.left + v.right;`
-    /// `v.left -= v.right;` -> `v.left = v.left - v.right;`
-    /// `v.left *= v.right;` -> `v.left = v.left * v.right;`
-    /// `v.left /= v.right;` -> `v.left = v.left / v.right;`
-    /// `v.left **= v.right;` -> `v.left = math.pow(v.left, v.right);`
-    /// `v.left %= v.right;` -> `v.left = math.mod(v.left, v.right);`
-    #[inline]
-    fn compile_assignment_statement(&self, stmt: &mut Statement<'a>) {
-        enum MathOrOp {
-            Math(&'static str),
-            Op(BinaryOperator),
-        }
-
-        let Statement::Assignment(assign_stmt) = stmt else { return };
-        let math_or_op = match assign_stmt.operator {
-            AssignmentOperator::Remainder => MathOrOp::Math("mod"),
-            AssignmentOperator::Exponential => MathOrOp::Math("pow"),
-            AssignmentOperator::Addition => MathOrOp::Op(BinaryOperator::Addition),
-            AssignmentOperator::Subtraction => MathOrOp::Op(BinaryOperator::Subtraction),
-            AssignmentOperator::Multiplication => MathOrOp::Op(BinaryOperator::Multiplication),
-            AssignmentOperator::Division => MathOrOp::Op(BinaryOperator::Division),
-            AssignmentOperator::Assign => return,
+        *expr = match operator {
+            BinaryOperator::Remainder => math_mod_expression(bin_expr.left, bin_expr.right),
+            BinaryOperator::Exponential => math_pow_expression(bin_expr.left, bin_expr.right),
+            BinaryOperator::ShiftLeft => shift_left_expression(bin_expr.left, bin_expr.right),
+            BinaryOperator::ShiftRight => shift_right_expression(bin_expr.left, bin_expr.right),
+            _ => unreachable!(),
         };
-        assign_stmt.operator = AssignmentOperator::Assign;
-        match math_or_op {
-            MathOrOp::Math(name) => {
-                let left = Expression::Variable(assign_stmt.left.clone().into());
-                let right = mem::take(&mut assign_stmt.right);
-                assign_stmt.right = Expression::Call(
-                    CallExpression {
-                        span: SPAN,
-                        kind: CallKind::Math,
-                        callee: IdentifierReference { span: SPAN, name },
-                        arguments: Some(vec![left, right]),
-                    }
-                    .into(),
-                );
-            }
-            MathOrOp::Op(bin_op) => {
-                assign_stmt.right = Expression::Binary(
-                    BinaryExpression {
-                        span: SPAN,
-                        left: Expression::Variable(assign_stmt.left.clone().into()),
-                        operator: bin_op,
-                        right: mem::take(&mut assign_stmt.right),
-                    }
-                    .into(),
-                );
-            }
-        }
     }
 
-    /// `v.i++` -> `v.i`
+    fn compile_assignment_statement(&self, stmt: &mut Statement<'a>) {
+        let Statement::Assignment(assign_stmt) = stmt else { return };
+        if assign_stmt.operator == AssignmentOperator::Assign {
+            return;
+        }
+
+        let operator = assign_stmt.operator;
+        let left = Expression::Variable(assign_stmt.left.clone().into());
+        let right = mem::take(&mut assign_stmt.right);
+        assign_stmt.operator = AssignmentOperator::Assign;
+        assign_stmt.right = match operator {
+            AssignmentOperator::Remainder => math_mod_expression(left, right),
+            AssignmentOperator::Exponential => math_pow_expression(left, right),
+            AssignmentOperator::Addition => {
+                basic_arithmetic_expression(left, BinaryOperator::Addition, right)
+            }
+            AssignmentOperator::Subtraction => {
+                basic_arithmetic_expression(left, BinaryOperator::Subtraction, right)
+            }
+            AssignmentOperator::Multiplication => {
+                basic_arithmetic_expression(left, BinaryOperator::Multiplication, right)
+            }
+            AssignmentOperator::Division => {
+                basic_arithmetic_expression(left, BinaryOperator::Division, right)
+            }
+            AssignmentOperator::ShiftLeft => shift_left_expression(left, right),
+            AssignmentOperator::ShiftRight => shift_right_expression(left, right),
+            _ => unreachable!(),
+        };
+    }
+
     fn compile_update_to_variable_expression(&mut self, expr: &mut Expression<'a>) {
         let Expression::Update(update_expr) = expr else { return };
         *expr = Expression::Variable(mem::take(&mut update_expr.variable).into());
     }
 
-    /// `v.i++;` -> `v.i = v.i + 1;`
     fn compile_update_expression_to_statement(&mut self, stmt: &mut Statement<'a>) {
         let (expr, has_side_effect) = match stmt {
             Statement::Expression(v) => (&mut **v, false),
@@ -179,8 +153,86 @@ impl<'a> Traverse<'a> for Compiler<'a> {
     }
 }
 
+/// Contextual info about the current scope.
+///
+/// Mainly stores extra statements to be added to the statement list upon
+/// exiting the scope.
 #[derive(Default)]
 struct Scope<'a> {
     statement_count: usize,
     update_statements: Vec<(usize, Statement<'a>)>,
+}
+
+#[inline]
+fn basic_arithmetic_expression<'a>(
+    left: Expression<'a>,
+    operator: BinaryOperator,
+    right: Expression<'a>,
+) -> Expression<'a> {
+    Expression::Binary(BinaryExpression { span: SPAN, left, operator, right }.into())
+}
+
+/// `v.x * math.pow(2, math.y)`
+#[inline]
+fn shift_left_expression<'a>(left: Expression<'a>, right: Expression<'a>) -> Expression<'a> {
+    BinaryExpression {
+        span: SPAN,
+        left,
+        operator: BinaryOperator::Multiplication,
+        right: math_pow_expression(
+            NumericLiteral { span: SPAN, value: 2.0, raw: "2" }.into(),
+            right,
+        ),
+    }
+    .into()
+}
+
+/// `math.floor(v.x / math.pow(2, math.y))`
+#[inline]
+fn shift_right_expression<'a>(left: Expression<'a>, right: Expression<'a>) -> Expression<'a> {
+    math_floor_expression(
+        BinaryExpression {
+            span: SPAN,
+            left,
+            operator: BinaryOperator::Division,
+            right: math_pow_expression(
+                NumericLiteral { span: SPAN, value: 2.0, raw: "2" }.into(),
+                right,
+            ),
+        }
+        .into(),
+    )
+}
+
+#[inline]
+fn math_pow_expression<'a>(left: Expression<'a>, right: Expression<'a>) -> Expression<'a> {
+    CallExpression {
+        span: SPAN,
+        kind: CallKind::Math,
+        callee: IdentifierReference { span: SPAN, name: "pow" },
+        arguments: Some(vec![left, right]),
+    }
+    .into()
+}
+
+#[inline]
+fn math_mod_expression<'a>(left: Expression<'a>, right: Expression<'a>) -> Expression<'a> {
+    CallExpression {
+        span: SPAN,
+        kind: CallKind::Math,
+        callee: IdentifierReference { span: SPAN, name: "mod" },
+        arguments: Some(vec![left, right]),
+    }
+    .into()
+}
+
+#[inline]
+fn math_floor_expression<'a>(x: Expression<'a>) -> Expression<'a> {
+    CallExpression {
+        span: SPAN,
+        kind: CallKind::Math,
+        callee: IdentifierReference { span: SPAN, name: "floor" },
+        arguments: Some(vec![x]),
+    }
+    .into()
 }

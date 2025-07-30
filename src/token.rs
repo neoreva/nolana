@@ -145,6 +145,18 @@ pub enum Kind {
     #[token("%=")]
     PercentEq,
 
+    #[token("<<")]
+    ShiftLeft,
+
+    #[token("<<=")]
+    ShiftLeftEq,
+
+    #[token(">>")]
+    ShiftRight,
+
+    #[token(">>=")]
+    ShiftRightEq,
+
     #[token("temp")]
     #[token("t", priority = 3)]
     Temporary,
@@ -220,6 +232,11 @@ impl Kind {
                 | Kind::Slash
                 | Kind::Percent
                 | Kind::Star2
+                | Kind::ShiftLeft
+                | Kind::ShiftRight
+        )
+    }
+
     pub fn is_assignment_operator(self) -> bool {
         matches!(
             self,
@@ -229,6 +246,9 @@ impl Kind {
                 | Kind::StarEq
                 | Kind::SlashEq
                 | Kind::Star2Eq
+                | Kind::PercentEq
+                | Kind::ShiftLeftEq
+                | Kind::ShiftRightEq
         )
     }
 
@@ -256,17 +276,17 @@ impl Kind {
     pub fn binding_power(self) -> Option<(u8, u8)> {
         Some(match self {
             Self::Plus2 | Self::Minus2 => (99, 0),
-            Self::Bang => (18, 19),
-            Self::Star | Self::Slash => (16, 17),
-            Self::Plus | Self::Minus => (14, 15),
-            Self::Lt | Self::Gt | Self::LtEq | Self::GtEq => (12, 13),
-            Self::Eq2 | Self::Neq => (10, 11),
-            Self::Amp2 => (8, 9),
-            Self::Pipe2 => (6, 7),
-            Self::Question => (5, 6),
-            Self::Question2 => (3, 4),
-            Self::Percent => (2, 3),
-            Self::Star2 => (1, 2),
+            Self::Bang => (21, 22),
+            Self::Star2 => (19, 20),
+            Self::Star | Self::Slash | Self::Percent => (17, 18),
+            Self::Plus | Self::Minus => (15, 16),
+            Self::ShiftLeft | Self::ShiftRight => (13, 14),
+            Self::Lt | Self::Gt | Self::LtEq | Self::GtEq => (11, 12),
+            Self::Eq2 | Self::Neq => (9, 10),
+            Self::Amp2 => (7, 8),
+            Self::Pipe2 => (5, 6),
+            Self::Question => (3, 4),
+            Self::Question2 => (1, 2),
             _ => return None,
         })
     }
@@ -315,6 +335,10 @@ impl Kind {
             Kind::SlashEq => "/=",
             Kind::Star2Eq => "**=",
             Kind::PercentEq => "%=",
+            Kind::ShiftLeft => "<<",
+            Kind::ShiftLeftEq => "<<=",
+            Kind::ShiftRight => ">>",
+            Kind::ShiftRightEq => ">>=",
             Kind::Temporary => "temp",
             Kind::Variable => "variable",
             Kind::Context => "context",
