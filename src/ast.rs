@@ -66,6 +66,17 @@ impl AssignmentOperator {
             Self::Division => "/=",
             Self::Exponential => "**=",
             Self::Remainder => "%=",
+impl From<Kind> for AssignmentOperator {
+    fn from(kind: Kind) -> Self {
+        match kind {
+            Kind::Eq => Self::Assign,
+            Kind::PlugEq => Self::Addition,
+            Kind::MinusEq => Self::Subtraction,
+            Kind::StarEq => Self::Multiplication,
+            Kind::SlashEq => Self::Division,
+            Kind::Star2Eq => Self::Exponential,
+            Kind::PercentEq => Self::Remainder,
+            _ => unreachable!("Assignment Operator: {kind:?}"),
         }
     }
 }

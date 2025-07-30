@@ -220,6 +220,15 @@ impl Kind {
                 | Kind::Slash
                 | Kind::Percent
                 | Kind::Star2
+    pub fn is_assignment_operator(self) -> bool {
+        matches!(
+            self,
+            Kind::Eq
+                | Kind::PlugEq
+                | Kind::MinusEq
+                | Kind::StarEq
+                | Kind::SlashEq
+                | Kind::Star2Eq
         )
     }
 
