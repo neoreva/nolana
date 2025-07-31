@@ -22,16 +22,74 @@ pub enum Statement<'a> {
 }
 
 /// `v.a = 0;`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct AssignmentStatement<'a> {
     pub span: Span,
     pub left: VariableExpression<'a>,
+    pub operator: AssignmentOperator,
     pub right: Expression<'a>,
 }
 
 impl<'a> From<AssignmentStatement<'a>> for Statement<'a> {
     fn from(value: AssignmentStatement<'a>) -> Self {
         Self::Assignment(value.into())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AssignmentOperator {
+    /// `=`
+    #[default]
+    Assign,
+    /// `+=`
+    Addition,
+    /// `-=`
+    Subtraction,
+    /// `*=`
+    Multiplication,
+    /// `-=`
+    Division,
+    /// `**=`
+    Exponential,
+    /// `%=`
+    Remainder,
+    /// `<<=`
+    ShiftLeft,
+    /// `>>=`
+    ShiftRight,
+}
+
+impl AssignmentOperator {
+    /// The string representation of this operator as it appears in source code.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Assign => "=",
+            Self::Addition => "+=",
+            Self::Subtraction => "-=",
+            Self::Multiplication => "*=",
+            Self::Division => "/=",
+            Self::Exponential => "**=",
+            Self::Remainder => "%=",
+            Self::ShiftLeft => "<<=",
+            Self::ShiftRight => ">>=",
+        }
+    }
+}
+
+impl From<Kind> for AssignmentOperator {
+    fn from(kind: Kind) -> Self {
+        match kind {
+            Kind::Eq => Self::Assign,
+            Kind::PlugEq => Self::Addition,
+            Kind::MinusEq => Self::Subtraction,
+            Kind::StarEq => Self::Multiplication,
+            Kind::SlashEq => Self::Division,
+            Kind::Star2Eq => Self::Exponential,
+            Kind::PercentEq => Self::Remainder,
+            Kind::ShiftLeftEq => Self::ShiftLeft,
+            Kind::ShiftRightEq => Self::ShiftRight,
+            _ => unreachable!("Assignment Operator: {kind:?}"),
+        }
     }
 }
 
@@ -87,6 +145,7 @@ pub enum Expression<'a> {
     Block(Box<BlockExpression<'a>>),
     Binary(Box<BinaryExpression<'a>>),
     Unary(Box<UnaryExpression<'a>>),
+    Update(Box<UpdateExpression<'a>>),
     Ternary(Box<TernaryExpression<'a>>),
     Conditional(Box<ConditionalExpression<'a>>),
     Resource(Box<ResourceExpression<'a>>),
@@ -104,8 +163,14 @@ impl<'a> From<Expression<'a>> for Statement<'a> {
     }
 }
 
+impl Default for Expression<'_> {
+    fn default() -> Self {
+        Self::NumericLiteral(Default::default())
+    }
+}
+
 /// `1.23` in `v.a = 1.23;`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct NumericLiteral<'a> {
     pub span: Span,
     pub value: f32,
@@ -158,14 +223,14 @@ impl<'a> From<StringLiteral<'a>> for Expression<'a> {
 }
 
 /// `foo` in `v.foo.bar`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct IdentifierReference<'a> {
     pub span: Span,
     pub name: &'a str,
 }
 
 /// <https://bedrock.dev/docs/stable/Molang#Variables>
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct VariableExpression<'a> {
     pub span: Span,
     pub lifetime: VariableLifetime,
@@ -179,9 +244,10 @@ impl<'a> From<VariableExpression<'a>> for Expression<'a> {
 }
 
 /// The variable lifetime associated with [`VariableExpression`].
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub enum VariableLifetime {
     /// `temp` in `temp.foo`
+    #[default]
     Temporary,
     /// `variable` in `variable.foo`
     Variable,
@@ -225,6 +291,12 @@ pub enum VariableMember<'a> {
     Object { span: Span, object: Box<VariableMember<'a>>, property: IdentifierReference<'a> },
     /// `foo` in `v.foo`
     Property { span: Span, property: IdentifierReference<'a> },
+}
+
+impl Default for VariableMember<'_> {
+    fn default() -> Self {
+        Self::Property { span: Span::default(), property: IdentifierReference::default() }
+    }
 }
 
 impl<'a> VariableMember<'a> {
@@ -273,7 +345,7 @@ impl<'a> From<BlockExpression<'a>> for Expression<'a> {
 }
 
 /// `1 + 1` in `v.a = 1 + 1;`
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct BinaryExpression<'a> {
     pub span: Span,
     pub left: Expression<'a>,
@@ -288,9 +360,10 @@ impl<'a> From<BinaryExpression<'a>> for Expression<'a> {
 }
 
 /// Operators used in [`BinaryExpression`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BinaryOperator {
     /// `==`
+    #[default]
     Equality,
     /// `!=`
     Inequality,
@@ -310,12 +383,20 @@ pub enum BinaryOperator {
     Multiplication,
     /// `/`
     Division,
+    /// `**`
+    Exponential,
+    /// `%`
+    Remainder,
     /// `||`
     Or,
     /// `&&`
     And,
     /// `??`
     Coalesce,
+    /// `<<`
+    ShiftLeft,
+    /// `>>`
+    ShiftRight,
 }
 
 impl BinaryOperator {
@@ -335,6 +416,10 @@ impl BinaryOperator {
             Self::Or => "||",
             Self::And => "&&",
             Self::Coalesce => "??",
+            Self::Exponential => "**",
+            Self::Remainder => "%",
+            Self::ShiftLeft => "<<",
+            Self::ShiftRight => ">>",
         }
     }
 }
@@ -355,6 +440,10 @@ impl From<Kind> for BinaryOperator {
             Kind::Plus => Self::Addition,
             Kind::Star => Self::Multiplication,
             Kind::Slash => Self::Division,
+            Kind::Star2 => Self::Exponential,
+            Kind::Percent => Self::Remainder,
+            Kind::ShiftLeft => Self::ShiftLeft,
+            Kind::ShiftRight => Self::ShiftRight,
             _ => unreachable!("Binary Operator: {kind:?}"),
         }
     }
@@ -399,6 +488,42 @@ impl From<Kind> for UnaryOperator {
             Kind::Minus => Self::Negate,
             Kind::Bang => Self::Not,
             _ => unreachable!("Unary Operator: {kind:?}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct UpdateExpression<'a> {
+    pub span: Span,
+    pub variable: VariableExpression<'a>,
+    pub operator: UpdateOperator,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum UpdateOperator {
+    /// `++`
+    #[default]
+    Increment,
+    /// `--`
+    Decrement,
+}
+
+impl UpdateOperator {
+    /// The string representation of this operator as it appears in source code.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Increment => "++",
+            Self::Decrement => "--",
+        }
+    }
+}
+
+impl From<Kind> for UpdateOperator {
+    fn from(token: Kind) -> Self {
+        match token {
+            Kind::Plus2 => Self::Increment,
+            Kind::Minus2 => Self::Decrement,
+            _ => unreachable!("Update Operator: {token:?}"),
         }
     }
 }

@@ -193,4 +193,10 @@ pub mod errors {
     pub fn empty_parenthesized_expression(span: Span) -> Diagnostic {
         Diagnostic::error("Empty parenthesized expression").with_label(span)
     }
+
+    #[cold]
+    pub fn illegal_update_operation(span: Span) -> Diagnostic {
+        Diagnostic::error("`++` and `--` can only be used on `variable.*` and `temp.*`")
+            .with_label(span)
+    }
 }
