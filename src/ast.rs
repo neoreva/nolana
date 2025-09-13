@@ -33,6 +33,7 @@ impl ProgramBody<'_> {
 pub enum Statement<'src> {
     Expression(Box<Expression<'src>>),
     Assignment(Box<AssignmentStatement<'src>>),
+    Function(Box<FunctionStatement<'src>>),
     Loop(Box<LoopStatement<'src>>),
     ForEach(Box<ForEachStatement<'src>>),
     Return(Box<ReturnStatement<'src>>),
@@ -139,6 +140,20 @@ impl From<Kind> for AssignmentOperator {
             Kind::CaretEq => Self::BitwiseXor,
             _ => unreachable!("Assignment Operator: {kind:?}"),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionStatement<'src> {
+    pub span: Span,
+    pub name: Identifier<'src>,
+    pub parameters: Option<Vec<StringLiteral<'src>>>,
+    pub body: BlockExpression<'src>,
+}
+
+impl<'src> From<FunctionStatement<'src>> for Statement<'src> {
+    fn from(value: FunctionStatement<'src>) -> Self {
+        Self::Function(value.into())
     }
 }
 
@@ -340,6 +355,8 @@ pub enum VariableLifetime {
     Variable,
     /// `context` in `context.foo`
     Context,
+    /// `parameter` in `parameter.foo`
+    Parameter,
 }
 
 impl VariableLifetime {
@@ -348,6 +365,7 @@ impl VariableLifetime {
             Self::Temporary => "temp",
             Self::Variable => "variable",
             Self::Context => "context",
+            Self::Parameter => "parameter",
         }
     }
 
@@ -356,6 +374,7 @@ impl VariableLifetime {
             Self::Temporary => "t",
             Self::Variable => "v",
             Self::Context => "c",
+            Self::Parameter => "p",
         }
     }
 }
@@ -366,6 +385,7 @@ impl From<Kind> for VariableLifetime {
             Kind::Temporary => Self::Temporary,
             Kind::Variable => Self::Variable,
             Kind::Context => Self::Context,
+            Kind::Parameter => Self::Parameter,
             _ => unreachable!("Variable Lifetime: {kind:?}"),
         }
     }
@@ -795,6 +815,8 @@ pub enum CallKind {
     Math,
     /// `query` in `query.foo`
     Query,
+    /// `function` in `function.foo`
+    Function,
 }
 
 impl CallKind {
@@ -802,6 +824,7 @@ impl CallKind {
         match self {
             Self::Math => "math",
             Self::Query => "query",
+            Self::Function => "function",
         }
     }
 
@@ -809,6 +832,7 @@ impl CallKind {
         match self {
             Self::Math => "math",
             Self::Query => "q",
+            Self::Function => "f",
         }
     }
 }
@@ -818,6 +842,7 @@ impl From<Kind> for CallKind {
         match kind {
             Kind::Math => Self::Math,
             Kind::Query => Self::Query,
+            Kind::Function => Self::Function,
             _ => unreachable!("Call Kind: {kind:?}"),
         }
     }

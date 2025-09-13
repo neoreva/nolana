@@ -147,6 +147,7 @@ impl Print for Statement<'_> {
         match self {
             Statement::Expression(stmt) => stmt.print(c),
             Statement::Assignment(stmt) => stmt.print(c),
+            Statement::Function(stmt) => stmt.print(c),
             Statement::Loop(stmt) => stmt.print(c),
             Statement::ForEach(stmt) => stmt.print(c),
             Statement::Return(stmt) => stmt.print(c),
@@ -174,6 +175,27 @@ impl Print for AssignmentStatement<'_> {
 impl Print for AssignmentOperator {
     fn print(&self, c: &mut Codegen) {
         c.print_str(self.as_str());
+    }
+}
+
+impl Print for FunctionStatement<'_> {
+    fn print(&self, c: &mut Codegen) {
+        c.print_str("f.");
+        self.name.print(c);
+        c.print_space();
+        c.print_char('=');
+        c.print_space();
+        c.print_str("function");
+        c.print_wrapped('(', ')', |c| {
+            if let Some(params) = &self.parameters {
+                for param in params {
+                    param.print(c);
+                    c.print_comma();
+                    c.print_space();
+                }
+            }
+            self.body.print(c);
+        });
     }
 }
 
