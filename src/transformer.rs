@@ -45,13 +45,14 @@ impl<'src> MolangTransformer<'src> {
                     BinaryOperator::BitwiseOr
                     | BinaryOperator::BitwiseAnd
                     | BinaryOperator::BitwiseXor => {
-                        let index = scope.new_statements.len() + scope.statement_count - 1;
-                        let (or_stmt, or_var_expr) = bitwise_operation_statement(
-                            left.clone(),
-                            right,
-                            operator.into(),
-                            index,
-                        );
+                        let index = scope.index();
+                        let bitwise_op = match operator {
+                            BinaryOperator::BitwiseOr => BitwiseOperation::Or { left, right },
+                            BinaryOperator::BitwiseAnd => BitwiseOperation::And { left, right },
+                            BinaryOperator::BitwiseXor => BitwiseOperation::Xor { left, right },
+                            _ => unreachable!("Bitwise Operation: {operator:?}"),
+                        };
+                        let (or_stmt, or_var_expr) = bitwise_operation_statement(bitwise_op, index);
                         scope.new_statements.push((index, or_stmt));
                         or_var_expr
                     }
@@ -108,21 +109,39 @@ impl<'src> MolangTransformer<'src> {
                 AssignmentOperator::BitwiseOr
                 | AssignmentOperator::BitwiseAnd
                 | AssignmentOperator::BitwiseXor => {
+                    let index = scope.index();
                     assign_stmt.right.replace_with(|right| {
-                        // TODO(@arexon): Method to calculate this.
-                        let index = scope.new_statements.len() + scope.statement_count - 1;
-                        let (or_stmt, or_var_expr) = bitwise_operation_statement(
-                            left.clone(),
-                            right,
-                            operator.into(),
-                            index,
-                        );
+                        let bitwise_op = match operator {
+                            AssignmentOperator::BitwiseOr => BitwiseOperation::Or { left, right },
+                            AssignmentOperator::BitwiseAnd => BitwiseOperation::And { left, right },
+                            AssignmentOperator::BitwiseXor => BitwiseOperation::Xor { left, right },
+                            _ => unreachable!("Bitwise Operation: {operator:?}"),
+                        };
+                        let (or_stmt, or_var_expr) = bitwise_operation_statement(bitwise_op, index);
                         scope.new_statements.push((index, or_stmt));
                         or_var_expr
                     })
                 }
                 AssignmentOperator::Assign => unreachable!(),
             }
+        }
+    }
+
+    fn transform_unary_expression(&mut self, expr: &mut Expression<'src>) {
+        if let Expression::Unary(unary_expr) = expr
+            && unary_expr.operator == UnaryOperator::BitwiseNot
+        {
+            let scope = self.scope();
+            let index = scope.index();
+            expr.replace_with(|expr| {
+                let Expression::Unary(unary_expr) = expr else { unreachable!() };
+                let (not_stmt, not_var_expr) = bitwise_operation_statement(
+                    BitwiseOperation::Not { right: unary_expr.argument },
+                    index,
+                );
+                scope.new_statements.push((index, not_stmt));
+                not_var_expr
+            });
         }
     }
 
@@ -143,8 +162,7 @@ impl<'src> MolangTransformer<'src> {
             .into(),
         }
         .into();
-        let index = scope.new_statements.len() + scope.statement_count - 1;
-        scope.new_statements.push((index, update_stmt));
+        scope.new_statements.push((scope.index(), update_stmt));
 
         expr.replace_with(|expr| {
             let Expression::Update(update_expr) = expr else { unreachable!() };
@@ -205,8 +223,9 @@ impl<'src> Traverse<'src> for MolangTransformer<'src> {
     }
 
     fn enter_expression(&mut self, it: &mut Expression<'src>) {
+        self.transform_unary_expression(it);
         self.transform_update_expression(it);
-        self.transform_binary_expression(it)
+        self.transform_binary_expression(it);
     }
 }
 
@@ -242,6 +261,12 @@ impl<'src> Traverse<'src> for ProgramBodyTransformer {
         }
     }
 
+    fn enter_unary_expression(&mut self, it: &mut UnaryExpression<'src>) {
+        if matches!(it.operator, UnaryOperator::BitwiseNot) && self.is_simple {
+            self.needs_complex = true
+        }
+    }
+
     fn enter_update_expression(&mut self, _: &mut UpdateExpression<'src>) {
         if self.is_simple {
             self.needs_complex = true;
@@ -257,6 +282,12 @@ impl<'src> Traverse<'src> for ProgramBodyTransformer {
 struct Scope<'src> {
     statement_count: usize,
     new_statements: Vec<(usize, Statement<'src>)>,
+}
+
+impl Scope<'_> {
+    fn index(&self) -> usize {
+        self.new_statements.len() + self.statement_count - 1
+    }
 }
 
 #[inline]
@@ -306,40 +337,31 @@ fn shift_right_expression<'src>(
     )
 }
 
-enum BitwiseOperation {
-    Or,
-    And,
-    Xor,
-}
-
-impl From<BinaryOperator> for BitwiseOperation {
-    fn from(op: BinaryOperator) -> Self {
-        match op {
-            BinaryOperator::BitwiseOr => Self::Or,
-            BinaryOperator::BitwiseAnd => Self::And,
-            BinaryOperator::BitwiseXor => Self::Xor,
-            _ => unreachable!("Bitwise Operation: {op:?}"),
-        }
-    }
-}
-
-impl From<AssignmentOperator> for BitwiseOperation {
-    fn from(op: AssignmentOperator) -> Self {
-        match op {
-            AssignmentOperator::BitwiseOr => Self::Or,
-            AssignmentOperator::BitwiseAnd => Self::And,
-            AssignmentOperator::BitwiseXor => Self::Xor,
-            _ => unreachable!("Bitwise Operation: {op:?}"),
-        }
-    }
+enum BitwiseOperation<'src> {
+    Or { left: Expression<'src>, right: Expression<'src> },
+    And { left: Expression<'src>, right: Expression<'src> },
+    Xor { left: Expression<'src>, right: Expression<'src> },
+    Not { right: Expression<'src> },
 }
 
 fn bitwise_operation_statement<'src>(
-    left: Expression<'src>,
-    right: Expression<'src>,
-    operation: BitwiseOperation,
+    operation: BitwiseOperation<'src>,
     index: usize,
 ) -> (Statement<'src>, Expression<'src>) {
+    const MAX_STMT_COUNT: usize = 5;
+
+    let right = match &operation {
+        BitwiseOperation::Or { right, .. }
+        | BitwiseOperation::And { right, .. }
+        | BitwiseOperation::Xor { right, .. }
+        | BitwiseOperation::Not { right } => right,
+    };
+    let left = match &operation {
+        BitwiseOperation::Or { left, .. }
+        | BitwiseOperation::And { left, .. }
+        | BitwiseOperation::Xor { left, .. } => Some(left),
+        BitwiseOperation::Not { .. } => None,
+    };
     let result_var = variable_expression(format!("__{index}_result"));
     let bit_var = variable_expression(format!("__{index}_bit"));
     let left_bit_var = variable_expression(format!("__{index}_left_bit"));
@@ -358,7 +380,7 @@ fn bitwise_operation_statement<'src>(
         )
     };
     let (op_bit_var, op_expr) = match operation {
-        BitwiseOperation::Or => (
+        BitwiseOperation::Or { .. } => (
             variable_expression(format!("__{index}_or_bit")),
             math_min_expression(
                 num_1_expr.clone(),
@@ -369,7 +391,7 @@ fn bitwise_operation_statement<'src>(
                 ),
             ),
         ),
-        BitwiseOperation::And => (
+        BitwiseOperation::And { .. } => (
             variable_expression(format!("__{index}_and_bit")),
             binary_expression(
                 left_bit_var.clone().into(),
@@ -377,7 +399,7 @@ fn bitwise_operation_statement<'src>(
                 right_bit_var.clone().into(),
             ),
         ),
-        BitwiseOperation::Xor => (
+        BitwiseOperation::Xor { .. } => (
             variable_expression(format!("__{index}_xor_bit")),
             math_mod_expression(
                 binary_expression(
@@ -388,13 +410,24 @@ fn bitwise_operation_statement<'src>(
                 num_2_expr.clone(),
             ),
         ),
+        BitwiseOperation::Not { .. } => (
+            variable_expression(format!("__{index}_not_bit")),
+            binary_expression(
+                right.clone(),
+                BinaryOperator::Subtraction,
+                right_bit_var.clone().into(),
+            ),
+        ),
     };
 
-    let loop_statements = vec![
-        assignment_statement(
+    let mut loop_statements = Vec::with_capacity(MAX_STMT_COUNT);
+    if let Some(left) = left {
+        loop_statements.push(assignment_statement(
             left_bit_var.clone(),
             extract_bit_expr(left.clone(), bit_var.clone().into()),
-        ),
+        ));
+    }
+    loop_statements.extend([
         assignment_statement(
             right_bit_var.clone(),
             extract_bit_expr(right.clone(), bit_var.clone().into()),
@@ -416,7 +449,7 @@ fn bitwise_operation_statement<'src>(
             bit_var.clone(),
             binary_expression(bit_var.clone().into(), BinaryOperator::Addition, num_1_expr),
         ),
-    ];
+    ]);
     let block_statements = vec![
         assignment_statement(result_var.clone(), num_0_expr.clone()),
         assignment_statement(bit_var, num_0_expr),

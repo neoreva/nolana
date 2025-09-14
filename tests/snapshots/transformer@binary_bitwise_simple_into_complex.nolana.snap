@@ -1,6 +1,6 @@
 ---
 source: tests/integration.rs
-input_file: tests/transformer/bitwise_simple_into_complex.nolana
+input_file: tests/transformer/binary_bitwise_simple_into_complex.nolana
 ---
 {
     variable.__0_result = 0;

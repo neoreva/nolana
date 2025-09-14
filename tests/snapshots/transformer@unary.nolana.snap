@@ -1,0 +1,15 @@
+---
+source: tests/integration.rs
+input_file: tests/transformer/unary.nolana
+---
+{
+    variable.__0_result = 0;
+    variable.__0_bit = 0;
+    loop(24, {
+        variable.__0_right_bit = math.mod(math.floor(1 / math.pow(2, variable.__0_bit)), 2);
+        variable.__0_not_bit = 1 - variable.__0_right_bit;
+        variable.__0_result = variable.__0_result + variable.__0_not_bit * math.pow(2, variable.__0_bit);
+        variable.__0_bit = variable.__0_bit + 1;
+    });
+};
+variable.a = variable.__0_result;

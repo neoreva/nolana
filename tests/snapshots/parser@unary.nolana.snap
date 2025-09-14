@@ -6,9 +6,9 @@ ParseResult {
     program: Program {
         span: Span {
             start: 0,
-            end: 20,
+            end: 24,
         },
-        source: "-(1 + 1);\n!(1 && 0);\n",
+        source: "-(1 + 1);\n!(1 && 0);\n~2;\n",
         body: Complex(
             [
                 Expression(
@@ -106,6 +106,27 @@ ParseResult {
                                             },
                                         ),
                                     ),
+                                },
+                            ),
+                        },
+                    ),
+                ),
+                Expression(
+                    Unary(
+                        UnaryExpression {
+                            span: Span {
+                                start: 21,
+                                end: 23,
+                            },
+                            operator: BitwiseNot,
+                            argument: NumericLiteral(
+                                NumericLiteral {
+                                    span: Span {
+                                        start: 22,
+                                        end: 23,
+                                    },
+                                    value: 2.0,
+                                    raw: "2",
                                 },
                             ),
                         },

@@ -588,6 +588,8 @@ pub enum UnaryOperator {
     Negate,
     /// `!`
     Not,
+    /// `~`
+    BitwiseNot,
 }
 
 impl UnaryOperator {
@@ -596,6 +598,7 @@ impl UnaryOperator {
         match self {
             Self::Negate => "-",
             Self::Not => "!",
+            Self::BitwiseNot => "~",
         }
     }
 }
@@ -605,6 +608,7 @@ impl From<Kind> for UnaryOperator {
         match kind {
             Kind::Minus => Self::Negate,
             Kind::Bang => Self::Not,
+            Kind::Tilde => Self::BitwiseNot,
             _ => unreachable!("Unary Operator: {kind:?}"),
         }
     }

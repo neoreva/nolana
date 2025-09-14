@@ -183,6 +183,9 @@ pub enum Kind {
     #[token(">>=")]
     ShiftRightEq,
 
+    #[token("~")]
+    Tilde,
+
     #[token("temp")]
     #[token("t", priority = 3)]
     Temporary,
@@ -287,7 +290,7 @@ impl Kind {
     }
 
     pub fn is_unary_operator(self) -> bool {
-        matches!(self, Kind::Minus | Kind::Bang)
+        matches!(self, Kind::Minus | Kind::Bang | Kind::Tilde)
     }
 
     pub fn is_update_operator(self) -> bool {
@@ -310,6 +313,7 @@ impl Kind {
     pub fn binding_power(self) -> Option<(u8, u8)> {
         Some(match self {
             Self::Plus2 | Self::Minus2 => (99, 0),
+            Self::Tilde => (29, 30),
             Self::Bang => (27, 28),
             Self::Star2 => (25, 26),
             Self::Star | Self::Slash | Self::Percent => (23, 24),
@@ -384,6 +388,7 @@ impl Kind {
             Kind::ShiftLeftEq => "<<=",
             Kind::ShiftRight => ">>",
             Kind::ShiftRightEq => ">>=",
+            Kind::Tilde => "~",
             Kind::Temporary => "temp",
             Kind::Variable => "variable",
             Kind::Context => "context",
