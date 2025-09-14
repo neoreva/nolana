@@ -5,16 +5,36 @@ use crate::{
     traverse::{Traverse, traverse},
 };
 
-#[derive(Default)]
-pub struct MolangTransformer<'src> {
+pub struct TransformerContext {}
+
+pub struct MolangTransformer<'src, 'a> {
+    context: Option<&'a mut TransformerContext>,
     scopes: Vec<Scope<'src>>,
+    /// Optional because we want to call [`Option::take()`] to remove it from
+    /// `self` which lets us pass `self` to [`traverse()`].
+    program: Option<&'a mut Program<'src>>,
     program_body_transformer: ProgramBodyTransformer,
 }
 
-impl<'src> MolangTransformer<'src> {
-    pub fn transform(&mut self, program: &mut Program<'src>) {
+impl<'src, 'a> MolangTransformer<'src, 'a> {
+    pub fn new(program: &'a mut Program<'src>) -> Self {
+        MolangTransformer {
+            context: None,
+            scopes: Vec::new(),
+            program: Some(program),
+            program_body_transformer: ProgramBodyTransformer::default(),
+        }
+    }
+
+    pub fn with_context(mut self, context: &'a mut TransformerContext) -> Self {
+        self.context = Some(context);
+        self
+    }
+
+    pub fn transform(mut self) {
+        let program = self.program.take().expect("a program transformer should only run once");
         traverse(&mut self.program_body_transformer, program);
-        traverse(self, program);
+        traverse(&mut self, program);
     }
 
     fn enter_scope(&mut self) {
@@ -199,7 +219,7 @@ impl<'src> MolangTransformer<'src> {
     }
 }
 
-impl<'src> Traverse<'src> for MolangTransformer<'src> {
+impl<'src> Traverse<'src> for MolangTransformer<'src, '_> {
     fn exit_program(&mut self, it: &mut Program<'src>) {
         self.add_return_statement(it);
     }

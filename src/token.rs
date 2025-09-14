@@ -198,6 +198,18 @@ pub enum Kind {
     #[token("c", priority = 3)]
     Context,
 
+    #[token("parameter")]
+    #[token("p", priority = 3)]
+    Parameter,
+
+    #[token("local")]
+    #[token("l", priority = 3)]
+    Local,
+
+    #[token("function")]
+    #[token("f", priority = 3)]
+    Function,
+
     #[regex(r"[Mm]ath")]
     Math,
 
@@ -298,11 +310,11 @@ impl Kind {
     }
 
     pub fn is_variable(self) -> bool {
-        matches!(self, Kind::Variable | Kind::Temporary | Kind::Context)
+        matches!(self, Kind::Variable | Kind::Temporary | Kind::Context | Kind::Parameter)
     }
 
     pub fn is_call(self) -> bool {
-        matches!(self, Kind::Math | Kind::Query)
+        matches!(self, Kind::Math | Kind::Query | Kind::Function)
     }
 
     pub fn is_resource(self) -> bool {
@@ -392,6 +404,9 @@ impl Kind {
             Kind::Temporary => "temp",
             Kind::Variable => "variable",
             Kind::Context => "context",
+            Kind::Parameter => "parameter",
+            Kind::Local => "local",
+            Kind::Function => "function",
             Kind::Math => "math",
             Kind::Query => "query",
             Kind::Geometry => "geometry",
@@ -477,7 +492,33 @@ mod tests {
     #[test]
     fn test_members() {
         assert_lexer(
-            "temp t variable v context c Math math Query query q Geometry geometry Texture texture Material material Array array",
+            "
+                temp
+                t
+                variable
+                v
+                context
+                c
+                parameter
+                p
+                local
+                l
+                function
+                f
+                Math
+                math
+                Query
+                query
+                q
+                Geometry
+                geometry
+                Texture
+                texture
+                Material
+                material
+                Array
+                array
+            ",
             &[
                 (Ok(Kind::Temporary), "temp"),
                 (Ok(Kind::Temporary), "t"),
@@ -485,6 +526,12 @@ mod tests {
                 (Ok(Kind::Variable), "v"),
                 (Ok(Kind::Context), "context"),
                 (Ok(Kind::Context), "c"),
+                (Ok(Kind::Parameter), "parameter"),
+                (Ok(Kind::Parameter), "p"),
+                (Ok(Kind::Local), "local"),
+                (Ok(Kind::Local), "l"),
+                (Ok(Kind::Function), "function"),
+                (Ok(Kind::Function), "f"),
                 (Ok(Kind::Math), "Math"),
                 (Ok(Kind::Math), "math"),
                 (Ok(Kind::Query), "Query"),

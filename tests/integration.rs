@@ -33,7 +33,7 @@ fn read_and_semantic(path: &Path) -> String {
 fn read_and_transform(path: &Path) -> String {
     let source = fs::read_to_string(path).unwrap();
     let mut result = Parser::new(&source).parse();
-    MolangTransformer::default().transform(&mut result.program);
+    MolangTransformer::new(&mut result.program).transform();
     Codegen::default().with_options(CodegenOptions { minify: false }).build(&result.program)
 }
 

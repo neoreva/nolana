@@ -39,6 +39,7 @@ pub struct Parser<'src> {
     token: Token,
     prev_token_end: u32,
     is_complex: bool,
+    function_depth: u8,
     errors: Vec<Diagnostic>,
 }
 
@@ -51,6 +52,7 @@ impl<'src> Parser<'src> {
             token: Token::default(),
             prev_token_end: 0,
             is_complex: false,
+            function_depth: 0,
             errors: Vec::new(),
         }
     }
@@ -104,6 +106,7 @@ impl<'src> Parser<'src> {
         let stmt = match self.current_kind() {
             Kind::Semi => self.parse_empty_statement()?,
             v if v.is_variable() => self.parse_assignment_statement_or_expression()?,
+            Kind::Function => self.parse_function_statement()?,
             Kind::Loop => self.parse_loop_statement()?,
             Kind::ForEach => self.parse_for_each_statement()?,
             Kind::Return => self.parse_return_statement()?.into(),
@@ -143,6 +146,37 @@ impl<'src> Parser<'src> {
                 self.parse_expression_rest(0, Expression::Variable(left.into()), span)?.into(),
             )
         })
+    }
+
+    fn parse_function_statement(&mut self) -> Result<Statement<'src>> {
+        let span = self.start_span();
+        self.expect(Kind::Function)?;
+        self.expect(Kind::Dot)?;
+        let name = self.parse_identifier()?;
+        self.expect(Kind::Eq)?;
+        self.expect(Kind::Function)?;
+        self.expect(Kind::LeftParen)?;
+        let mut parameters = Vec::new();
+        loop {
+            if self.at(Kind::LeftBrace) {
+                break;
+            }
+            parameters.push(self.parse_literal_string()?);
+            if self.eat(Kind::Comma) && self.at(Kind::LeftBrace) {
+                break;
+            }
+        }
+        self.enter_function();
+        let body = self.parse_block_expression()?;
+        self.exit_function();
+        self.expect(Kind::RightParen)?;
+        Ok(FunctionStatement {
+            span: self.end_span(span),
+            name,
+            parameters: (!parameters.is_empty()).then_some(parameters),
+            body,
+        }
+        .into())
     }
 
     fn parse_loop_statement(&mut self) -> Result<Statement<'src>> {
@@ -201,12 +235,12 @@ impl<'src> Parser<'src> {
         let left = match self.current_kind() {
             Kind::True | Kind::False => self.parse_literal_boolean()?,
             Kind::Number => self.parse_literal_number()?,
-            Kind::String => self.parse_literal_string()?,
+            Kind::String => self.parse_literal_string().map(Into::into)?,
             v if v.is_variable() => self.parse_variable_expression().map(Into::into)?,
             Kind::LeftParen => self.parse_parenthesized_expression()?,
             Kind::LeftBrace => self.parse_block_expression().map(Into::into)?,
             v if v.is_unary_operator() => self.parse_unary_expression()?,
-            Kind::Query | Kind::Math => self.parse_call_expression()?,
+            v if v.is_call() => self.parse_call_expression()?,
             v if v.is_resource() => self.parse_resource_expression()?,
             Kind::Array => self.parse_array_access_expression()?,
             Kind::Loop | Kind::ForEach => {
@@ -280,12 +314,12 @@ impl<'src> Parser<'src> {
         Ok(BooleanLiteral { span: self.end_span(span), value }.into())
     }
 
-    pub fn parse_literal_string(&mut self) -> Result<Expression<'src>> {
+    fn parse_literal_string(&mut self) -> Result<StringLiteral<'src>> {
         let span = self.start_span();
         let value = self.current_src();
         let value = &value[1..value.len() - 1];
         self.expect(Kind::String)?;
-        Ok(StringLiteral { span: self.end_span(span), value }.into())
+        Ok(StringLiteral { span: self.end_span(span), value })
     }
 
     #[inline(always)] // Hot path
@@ -415,6 +449,9 @@ impl<'src> Parser<'src> {
         while self.eat(Kind::Dot) {
             let property = self.parse_identifier()?;
             member = VariableMember::Object { object: member.into(), property };
+        }
+        if lifetime == VariableLifetime::Parameter && !self.is_in_function() {
+            return Err(function_variable_outside_function(self.end_span(span)));
         }
         Ok(VariableExpression { span: self.end_span(span), lifetime, member })
     }
@@ -565,6 +602,22 @@ impl<'src> Parser<'src> {
     fn error(&mut self, error: Diagnostic) {
         self.errors.push(error);
     }
+
+    #[inline]
+    fn is_in_function(&self) -> bool {
+        self.function_depth > 0
+    }
+
+    #[inline]
+    fn enter_function(&mut self) {
+        self.function_depth += 1;
+    }
+
+    #[inline]
+    fn exit_function(&mut self) {
+        debug_assert!(self.function_depth != 0, "exiting a function but depth is 0");
+        self.function_depth -= 1;
+    }
 }
 
 #[cold]
@@ -623,4 +676,12 @@ fn illegal_update_operation(span: Span) -> Diagnostic {
 #[cold]
 fn invalid_for_each_first_arg(span: Span) -> Diagnostic {
     Diagnostic::error("`for_each` statement first argument must be a variable").with_label(span)
+}
+
+#[cold]
+fn function_variable_outside_function(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "parameter and local variables may only be used inside the body of a function",
+    )
+    .with_label(span)
 }

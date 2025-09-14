@@ -25,6 +25,7 @@ impl<'a> Traverse<'a> for MolangStats {
         match it.kind {
             CallKind::Math => self.math_functions += 1,
             CallKind::Query => self.queries += 1,
+            CallKind::Function => (),
         }
     }
 }

@@ -1,0 +1,10 @@
+f.add = function('x', 'y', {
+    return p.x + p.y;
+});
+
+f.add = function('x', 'y', {
+    f.sub = function({
+        return p.x - 2;
+    });
+    return f.sub(p.x) + p.y;
+});

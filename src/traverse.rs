@@ -32,6 +32,12 @@ pub trait Traverse<'src>: Sized {
     fn exit_assignment_statement(&mut self, it: &mut AssignmentStatement<'src>) {}
 
     #[inline]
+    fn enter_function_statement(&mut self, it: &mut FunctionStatement<'src>) {}
+
+    #[inline]
+    fn exit_function_statement(&mut self, it: &mut FunctionStatement<'src>) {}
+
+    #[inline]
     fn enter_loop_statement(&mut self, it: &mut LoopStatement<'src>) {}
 
     #[inline]
@@ -205,6 +211,7 @@ fn walk_statement<'src>(traverser: &mut impl Traverse<'src>, it: &mut Statement<
     match it {
         Statement::Expression(it) => walk_expression(traverser, it),
         Statement::Assignment(it) => walk_assignment_statement(traverser, it),
+        Statement::Function(it) => walk_function_statement(traverser, it),
         Statement::Loop(it) => walk_loop_statement(traverser, it),
         Statement::ForEach(it) => walk_for_each_statement(traverser, it),
         Statement::Return(it) => walk_return_statement(traverser, it),
@@ -223,6 +230,20 @@ fn walk_assignment_statement<'src>(
     walk_variable_expression(traverser, &mut it.left);
     walk_expression(traverser, &mut it.right);
     traverser.exit_assignment_statement(it);
+}
+
+fn walk_function_statement<'src>(
+    traverser: &mut impl Traverse<'src>,
+    it: &mut FunctionStatement<'src>,
+) {
+    traverser.enter_function_statement(it);
+    walk_identifier_reference(traverser, &mut it.name);
+    if let Some(params) = &mut it.parameters {
+        for param in params {
+            walk_string_literal(traverser, param);
+        }
+    }
+    traverser.exit_function_statement(it);
 }
 
 fn walk_loop_statement<'src>(traverser: &mut impl Traverse<'src>, it: &mut LoopStatement<'src>) {
